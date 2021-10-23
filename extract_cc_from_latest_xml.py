@@ -1,24 +1,28 @@
 from os import listdir, linesep, path, remove
 from lxml import etree
 import shutil
-from gzip import GzipFile
+import gzip
 
 def latest_file_of_type_in_dir(directory, extension):
     files = [f for f in listdir(directory) if path.isfile(path.join(directory, f))]
     fileName = max(list(filter(lambda x: f'.{extension}' in x, files)))
     return path.join(directory, fileName)
 
+class MIDICCMessage:
+    def __init__(self, source, name, channel, cc) -> None:
+        self.source = source
+        self.name = name
+        self.channel = channel
+        self.cc = cc
+
 class FileReader:
     def __init__(self, filePath) -> None:
         self.filePath = filePath
-        self.namesAndCC = []
+        self.messages = []
     def __str__(self) -> str:
         strang = ''
-        if hasattr(self, 'filePath'):
-            strang += linesep + self.filePath + linesep + linesep
-        if hasattr(self, 'namesAndCC'):
-            for name_and_cc in self.namesAndCC:
-                strang += f"{name_and_cc['name']}\t{name_and_cc['channel']}\t{name_and_cc['cc']}{linesep}"
+        for message in self.messages:
+            strang += f"{message.source}\t{message.name}\t{message.channel}\t{message.cc}{linesep}"
         return strang
 
 class TouchOSCReader(FileReader):
@@ -32,38 +36,33 @@ class TouchOSCReader(FileReader):
         midi_message_channel = int(midi_message.find('channel').text) + 1
         # Data1 is 1 base both in XML and in UI
         midi_message_cc = midi_message.find('data1').text
-        return {
-            'name': name,
-            'channel': midi_message_channel,
-            'cc': midi_message_cc
-        }
+        return MIDICCMessage(
+            source = 'TouchOSC',
+            name = name,
+            channel = midi_message_channel,
+            cc = midi_message_cc
+        )
 
     def read(self):
         # Get nodes with enabled MIDI messages
         nodes_sending_midi = etree.parse(self.filePath).xpath('//node[messages/midi/enabled="1"]')
         for node in nodes_sending_midi:
             nodeData = self.extract_node_data(node)
-            self.namesAndCC.append(nodeData)
+            self.messages.append(nodeData)
 
 class AbletonReader(FileReader):
     def __init__(self, filePath) -> None:
         super().__init__(filePath)
     
-    def extract_xml(self):
-        zipCopyName = f'{path.splitext(self.filePath)[0]} DELETE MEEEEEE.zip'
-        try:
-            shutil.copy(self.filePath, zipCopyName)
-            with GzipFile(zipCopyName) as myzip:
-                xml = myzip.read()
-            remove(zipCopyName)
-            return xml
-        except:
-            remove(zipCopyName)
-            raise
+    def extract_tree(self):
+        with gzip.open(self.filePath) as f:
+            xml = f.read()
+        return etree.fromstring(xml)
 
     def read(self):
-        xml = self.extract_xml()
-        print(xml)
+        tree = self.extract_tree()
+        
+        # print(xml) 
     
 files = [
     TouchOSCReader(latest_file_of_type_in_dir('/Users/jonnie/My Drive/Documents/Music Production/Peripherals/TouchOSC','xml')),
