@@ -59,10 +59,30 @@ class AbletonReader(FileReader):
             xml = f.read()
         return etree.fromstring(xml)
 
+    def extract_node_data(self, node):
+        name = None
+        channel = None
+        # TODO Get name from somewhere... Might not actually be possible
+        for property in node.iterchildren():
+            if property.tag == 'Channel':
+                channel = property.xpath('@Value')[0]
+            elif property.tag == 'NoteOrController':
+                cc = property.xpath('@Value')[0]
+        
+        return MIDICCMessage(
+            source = 'Ableton',
+            name = None,
+            channel = channel,
+            cc = cc
+        )
+
     def read(self):
         tree = self.extract_tree()
-        
-        # print(xml) 
+        nodes = tree.xpath('//KeyMidi[IsNote/@Value="false" and Channel/@Value>0 and NoteOrController/@Value>0]')
+        for node in nodes:
+            nodeData = self.extract_node_data(node)
+            self.messages.append(nodeData)
+            
     
 files = [
     TouchOSCReader(latest_file_of_type_in_dir('/Users/jonnie/My Drive/Documents/Music Production/Peripherals/TouchOSC','xml')),
