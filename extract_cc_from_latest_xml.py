@@ -24,6 +24,19 @@ class FileReader:
         for message in self.messages:
             strang += f"{message.source}\t{message.name}\t{message.channel}\t{message.cc}{linesep}"
         return strang
+    def xmlGetPath(self, node):
+        pathString = ''
+        if hasattr(node, 'tag'):
+            # Try to get the user facing name if it has one, otherwise use the tag
+            try:
+                pathString += node.xpath('Name/EffectiveName/@Value')[0]
+            except:
+                pathString += node.tag
+        if hasattr(node, 'getparent'):
+            parent = self.xmlGetPath(node.getparent())
+            if len(parent) > 0:
+                pathString = parent + ' > ' + pathString
+        return pathString
 
 class TouchOSCReader(FileReader):
     def __init__(self, filePath) -> None:
@@ -65,20 +78,22 @@ class AbletonReader(FileReader):
         # TODO Get name from somewhere... Might not actually be possible
         for property in node.iterchildren():
             if property.tag == 'Channel':
-                channel = property.xpath('@Value')[0]
+                # Channels are recorded as 0 base, but UI is 1 base
+                channel = int(property.xpath('@Value')[0]) + 1
             elif property.tag == 'NoteOrController':
                 cc = property.xpath('@Value')[0]
         
+        path = self.xmlGetPath(node)
         return MIDICCMessage(
             source = 'Ableton',
-            name = None,
+            name = path,
             channel = channel,
             cc = cc
         )
 
     def read(self):
         tree = self.extract_tree()
-        nodes = tree.xpath('//KeyMidi[IsNote/@Value="false" and Channel/@Value>0 and NoteOrController/@Value>0]')
+        nodes = tree.xpath('//KeyMidi[IsNote/@Value="false" and NoteOrController/@Value>0]')
         for node in nodes:
             nodeData = self.extract_node_data(node)
             self.messages.append(nodeData)
