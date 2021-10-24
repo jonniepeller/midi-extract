@@ -5,14 +5,15 @@ import csv
 import json
 
 class MIDICCMessage:
-    def __init__(self, source, name, channel, cc) -> None:
+    def __init__(self, function, source, name, channel, cc) -> None:
+        self.function = function
         self.source = source
         self.name = name
         self.channel = channel
         self.cc = cc
 
     def toCsvRow(self):
-        return [self.source, self.name, self.channel, self.cc]
+        return [self.function, self.source, self.name, self.channel, self.cc]
 
 def writeFileReadersToFile(fileReaders, filePath):
     with open(filePath, 'w') as f:
@@ -34,12 +35,24 @@ class FileReader:
     def writeToWriter(self, writer):
         writer.writerows([m.toCsvRow() for m in self.messages])
 
+    def jsonFind(self, path, json):
+        for key in path.split('.'):
+            if hasattr(json, 'keys') and key in json.keys():
+                json = json[key]
+            else:
+                return None
+        return json
+
     def readXML(self):
         nodes = self.extractNodes()
         if nodes:
             for node in nodes:
                 nodeData = self.extractDataFromNode(node)
                 self.messages.append(nodeData)
+            
+    def readJSON(self):
+        nodes = self.extractDict()
+        dataFromNodes = self.extractDataFromDict(nodes)
 
 class TouchOSCReader(FileReader):
     def __init__(self, filePath) -> None:
@@ -56,6 +69,7 @@ class TouchOSCReader(FileReader):
         # Data1 is 1 base both in XML and in UI
         midi_message_cc = midi_message.find('data1').text
         return MIDICCMessage(
+            function='Source',
             source = 'TouchOSC',
             name = name,
             channel = midi_message_channel,
@@ -124,6 +138,7 @@ class AbletonReader(FileReader):
             'AudioEffectGroupDevice',
             'Chain'])
         return MIDICCMessage(
+            function='Destination',
             source = 'Ableton',
             name = path,
             channel = channel,
@@ -132,6 +147,72 @@ class AbletonReader(FileReader):
     
     def read(self):
         self.readXML()
+
+class S49Reader(FileReader):
+    def __init__(self, filePath) -> None:
+        super().__init__(filePath)
+
+    def extractDict(self):
+        with open(self.filePath, 'r') as f:
+            return json.loads(f.read())
+
+    def extractDataFromDict(self, dict):
+        if hasattr(dict, 'keys'):
+            for key in dict.keys():
+                childDict = dict[key]
+                if hasattr(childDict, 'keys'):
+                    if 'MIDIId' in childDict.keys() and childDict.get('MIDIType') == '3':
+                        # Get name if there is one, otherwise use the key
+                        name = childDict.get('Name')
+                        if name is None:
+                            name = key
+                        msg = MIDICCMessage(
+                            function='Source',
+                            source = 'S49',
+                            name = name,
+                            # Channels are recorded as 0 base, but UI is 1 base
+                            channel = int(childDict.get('Channel')) + 1,
+                            cc = childDict.get('MIDIId')
+                        )
+                        self.messages.append(msg)
+                    else:
+                        self.extractDataFromDict(childDict)
+    
+    def read(self):
+        self.readJSON()
+
+
+class UAMIDIControlReader(FileReader):
+    def __init__(self, filePath) -> None:
+        super().__init__(filePath)
+
+    def extractDict(self):
+        with open(self.filePath, 'r') as f:
+            return json.loads(f.read())
+
+    def extractDataFromDict(self, dict):
+        if hasattr(dict, 'keys'):
+            for key in dict.keys():
+                childDict = dict[key]
+                if hasattr(childDict, 'keys'):
+                    printStr = self.jsonFind('midiMessage.printStr', childDict)
+                    originDeviceName = self.jsonFind('midiMessage.midiDeviceInfo.name', childDict)
+                    # If it has path to message, and that type is CC, then we want this one. Otherwise keep digging.
+                    if printStr is not None and 'CC' in printStr:
+                        msg = MIDICCMessage(
+                            function='Destination',
+                            source = 'UADMIDIControl',
+                            name = f'{originDeviceName} to {key}',
+                            channel = int(printStr.split(' ')[0]),
+                            cc = self.jsonFind('midiMessage.nr', childDict)
+                        )
+                        self.messages.append(msg)
+                    else:
+                        self.extractDataFromDict(childDict)
+    
+    def read(self):
+        self.readJSON()
+
 
 class MIDIFighterTwisterReader(FileReader):
     # TODO: Implement this!
@@ -146,40 +227,3 @@ class MIDIFighterTwisterReader(FileReader):
     
     def read(self):
         self.readXML()
-
-
-class S49Reader(FileReader):
-    def __init__(self, filePath) -> None:
-        super().__init__(filePath)
-
-    def extractDict(self):
-        with open(self.filePath, 'r') as f:
-            return json.loads(f.read())
-
-    def extractDataFromDict(self, dict):
-        hasattr(dict, 'keys')
-        for key in dict.keys():
-            childDict = dict[key]
-            if hasattr(childDict, 'keys'):
-                if 'MIDIId' in childDict.keys() and childDict.get('MIDIType') == '3':
-                    # Get name if there is one, otherwise use the key
-                    name = childDict.get('Name')
-                    if name is None:
-                         name = key
-                    msg = MIDICCMessage(
-                        source = 'S49',
-                        name = name,
-                        # Channels are recorded as 0 base, but UI is 1 base
-                        channel = int(childDict.get('Channel')) + 1,
-                        cc = childDict.get('MIDIId')
-                    )
-                    self.messages.append(msg)
-                else:
-                    self.extractDataFromDict(childDict)
-            
-    def readJSON(self):
-        nodes = self.extractDict()
-        dataFromNodes = self.extractDataFromDict(nodes)
-    
-    def read(self):
-        self.readJSON()
