@@ -34,19 +34,20 @@ class FileReader:
         writer.writerows([m.toCsvRow() for m in self.messages])
 
     def read(self):
-        nodes = self.extract_nodes()
-        for node in nodes:
-            nodeData = self.extract_node_data(node)
-            self.messages.append(nodeData)
+        nodes = self.extractNodes()
+        if nodes:
+            for node in nodes:
+                nodeData = self.extractDataFromNode(node)
+                self.messages.append(nodeData)
 
 class TouchOSCReader(FileReader):
     def __init__(self, filePath) -> None:
         super().__init__(filePath)
 
-    def extract_nodes(self):
+    def extractNodes(self):
         return etree.parse(self.filePath).xpath('//node[messages/midi/enabled="1"]')
 
-    def extract_node_data(self, node):
+    def extractDataFromNode(self, node):
         name = node.xpath('properties/property[contains(key/text(),"name")]/value/text()')[0].strip()
         midi_message = node.find('messages/midi/message')
         # Channels are recorded as 0 base, but UI is 1 base
@@ -64,7 +65,7 @@ class AbletonReader(FileReader):
     def __init__(self, filePath) -> None:
         super().__init__(filePath)
     
-    def extract_nodes(self):
+    def extractNodes(self):
         with gzip.open(self.filePath) as f:
             xml = f.read()
         tree = etree.fromstring(xml)
@@ -99,8 +100,7 @@ class AbletonReader(FileReader):
             else:
                 return elementName
 
-    def extract_node_data(self, node):
-        name = None
+    def extractDataFromNode(self, node):
         channel = None
         for property in node.iterchildren():
             if property.tag == 'Channel':
@@ -126,9 +126,25 @@ class AbletonReader(FileReader):
             cc = cc
         )
 
-# class MIDIFighterTwisterReader(FileReader):
-#     def __init__(self, filePath) -> None:
-#         super().__init__(filePath)
+class MIDIFighterTwisterReader(FileReader):
+    # TODO: Implement this!
+    def __init__(self, filePath) -> None:
+        super().__init__(filePath)
     
-#     def extract_tree(self):
-#         pass
+    def extractNodes(self):
+        pass
+
+    def extractDataFromNode(self, node):
+        pass
+
+
+class S49Reader(FileReader):
+    def __init__(self, filePath) -> None:
+        super().__init__(filePath)
+    
+    def extractNodes(self):
+        pass
+
+    def extractDataFromNode(self, node):
+        pass
+
