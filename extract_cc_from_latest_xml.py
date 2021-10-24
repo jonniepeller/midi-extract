@@ -9,8 +9,10 @@ def latest_file_of_type_in_dir(directory, extension):
 files = [
     FR.TouchOSCReader(latest_file_of_type_in_dir('/Users/jonnie/My Drive/Documents/Music Production/Peripherals/TouchOSC','xml')),
     FR.AbletonReader(latest_file_of_type_in_dir('/Users/jonnie/My Drive/Documents/Music Production/Ableton user library/Templates','als')),
+    # FR.MIDIFighterTwisterReader(latest_file_of_type_in_dir('/Users/jonnie/My Drive/Documents/Music Production/Peripherals/MIDI Fighter Twister','mfs')),
 ]
 
 for file in files:
     file.read()
-    print(file)
+
+FR.writeFileReadersToFile(files, 'Extracted MIDI.csv')
