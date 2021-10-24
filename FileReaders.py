@@ -2,6 +2,7 @@ from os import linesep
 from lxml import etree
 import gzip
 import csv
+import json
 
 class MIDICCMessage:
     def __init__(self, source, name, channel, cc) -> None:
@@ -33,7 +34,7 @@ class FileReader:
     def writeToWriter(self, writer):
         writer.writerows([m.toCsvRow() for m in self.messages])
 
-    def read(self):
+    def readXML(self):
         nodes = self.extractNodes()
         if nodes:
             for node in nodes:
@@ -60,6 +61,9 @@ class TouchOSCReader(FileReader):
             channel = midi_message_channel,
             cc = midi_message_cc
         )
+    
+    def read(self):
+        self.readXML()
 
 class AbletonReader(FileReader):
     def __init__(self, filePath) -> None:
@@ -125,6 +129,9 @@ class AbletonReader(FileReader):
             channel = channel,
             cc = cc
         )
+    
+    def read(self):
+        self.readXML()
 
 class MIDIFighterTwisterReader(FileReader):
     # TODO: Implement this!
@@ -136,15 +143,43 @@ class MIDIFighterTwisterReader(FileReader):
 
     def extractDataFromNode(self, node):
         pass
+    
+    def read(self):
+        self.readXML()
 
 
 class S49Reader(FileReader):
     def __init__(self, filePath) -> None:
         super().__init__(filePath)
+
+    def extractDict(self):
+        with open(self.filePath, 'r') as f:
+            return json.loads(f.read())
+
+    def extractDataFromDict(self, dict):
+        hasattr(dict, 'keys')
+        for key in dict.keys():
+            childDict = dict[key]
+            if hasattr(childDict, 'keys'):
+                if 'MIDIId' in childDict.keys() and childDict.get('MIDIType') == '3':
+                    # Get name if there is one, otherwise use the key
+                    name = childDict.get('Name')
+                    if name is None:
+                         name = key
+                    msg = MIDICCMessage(
+                        source = 'S49',
+                        name = name,
+                        # Channels are recorded as 0 base, but UI is 1 base
+                        channel = int(childDict.get('Channel')) + 1,
+                        cc = childDict.get('MIDIId')
+                    )
+                    self.messages.append(msg)
+                else:
+                    self.extractDataFromDict(childDict)
+            
+    def readJSON(self):
+        nodes = self.extractDict()
+        dataFromNodes = self.extractDataFromDict(nodes)
     
-    def extractNodes(self):
-        pass
-
-    def extractDataFromNode(self, node):
-        pass
-
+    def read(self):
+        self.readJSON()
