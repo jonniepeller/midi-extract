@@ -6,8 +6,8 @@ def latest_file_of_type_in_dir(directory, extension):
     sourceFiles = [f for f in listdir(directory) if path.isfile(path.join(directory, f))]
     filesWithThisExtension = list(filter(lambda x: f'.{extension}' in x, sourceFiles))
     if len(filesWithThisExtension) == 0:
-        raise Exception(f'No files found with {extension} extension—Have you forgotten to do an export?')
-    fileName = max()
+        raise Exception(f'No files found in {directory} with {extension} extension—Have you forgotten to do an export?')
+    fileName = max(filesWithThisExtension)
     return path.join(directory, fileName)
 
 # Data
