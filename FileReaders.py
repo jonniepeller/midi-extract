@@ -1,4 +1,4 @@
-from os import linesep
+from os import linesep, path
 from lxml import etree
 import gzip
 import csv
@@ -7,7 +7,7 @@ import json
 class MIDICCMessage:
     def __init__(self, function, source, name, channel, cc) -> None:
         self.function = function
-        self.source = source
+        self.source=source
         self.name = name
         self.channel = channel
         self.cc = cc
@@ -24,6 +24,7 @@ def writeFileReadersToFile(fileReaders, filePath):
 class FileReader:
     def __init__(self, filePath) -> None:
         self.filePath = filePath
+        self.fileName = path.basename(self.filePath)
         self.messages = []
 
     def __str__(self) -> str:
@@ -70,7 +71,7 @@ class TouchOSCReader(FileReader):
         midi_message_cc = midi_message.find('data1').text
         return MIDICCMessage(
             function='Source',
-            source = 'TouchOSC',
+            source=f'TouchOSC export, {self.fileName}',
             name = name,
             channel = midi_message_channel,
             cc = midi_message_cc
@@ -87,7 +88,7 @@ class AbletonReader(FileReader):
         with gzip.open(self.filePath) as f:
             xml = f.read()
         tree = etree.fromstring(xml)
-        nodes = tree.xpath('//KeyMidi[IsNote/@Value="false" and NoteOrController/@Value>0]')
+        nodes = tree.xpath('//KeyMidi[IsNote/@Value="false" and Channel/@Value<=15 and NoteOrController/@Value>0]')
         return nodes
 
     def getPath(self, node, stopBefore=None, ignoreList=[None]):
@@ -95,7 +96,8 @@ class AbletonReader(FileReader):
         if hasattr(node, 'tag'):
             try:
                 if 'MacroControls' in node.tag:
-                    elementName = node.xpath('../MacroDisplayNames.0/@Value')[0]
+                    macroNumber = node.tag.split('.')[1]
+                    elementName = node.xpath(f'../MacroDisplayNames.{macroNumber}/@Value')[0]
                 else:
                     elementName = node.xpath('Name/EffectiveName/@Value')[0]
             except:
@@ -126,7 +128,7 @@ class AbletonReader(FileReader):
                 channel = int(property.xpath('@Value')[0]) + 1
             elif property.tag == 'NoteOrController':
                 cc = property.xpath('@Value')[0]
-    
+                
         path = self.getPath(node, 'LiveSet', [
             'KeyMidi',
             'Devices',
@@ -139,7 +141,7 @@ class AbletonReader(FileReader):
             'Chain'])
         return MIDICCMessage(
             function='Destination',
-            source = 'Ableton',
+            source=f'Ableton file, {self.fileName}',
             name = path,
             channel = channel,
             cc = cc
@@ -168,7 +170,7 @@ class S49Reader(FileReader):
                             name = key
                         msg = MIDICCMessage(
                             function='Source',
-                            source = 'S49',
+                            source=f'Komplete Kontrol settings file, {self.fileName}',
                             name = name,
                             # Channels are recorded as 0 base, but UI is 1 base
                             channel = int(childDict.get('Channel')) + 1,
@@ -180,7 +182,6 @@ class S49Reader(FileReader):
     
     def read(self):
         self.readJSON()
-
 
 class UAMIDIControlReader(FileReader):
     def __init__(self, filePath) -> None:
@@ -201,7 +202,7 @@ class UAMIDIControlReader(FileReader):
                     if printStr is not None and 'CC' in printStr:
                         msg = MIDICCMessage(
                             function='Destination',
-                            source = 'UADMIDIControl',
+                            source=f'UADMIDIControl file, {self.fileName}',
                             name = f'{originDeviceName} to {key}',
                             channel = int(printStr.split(' ')[0]),
                             cc = self.jsonFind('midiMessage.nr', childDict)
@@ -212,7 +213,6 @@ class UAMIDIControlReader(FileReader):
     
     def read(self):
         self.readJSON()
-
 
 class MIDIFighterTwisterReader(FileReader):
     # TODO: Implement this!

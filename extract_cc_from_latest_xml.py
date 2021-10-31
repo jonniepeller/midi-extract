@@ -4,7 +4,10 @@ import FileReaders as FR
 
 def latest_file_of_type_in_dir(directory, extension):
     sourceFiles = [f for f in listdir(directory) if path.isfile(path.join(directory, f))]
-    fileName = max(list(filter(lambda x: f'.{extension}' in x, sourceFiles)))
+    filesWithThisExtension = list(filter(lambda x: f'.{extension}' in x, sourceFiles))
+    if len(filesWithThisExtension) == 0:
+        raise Exception(f'No files found with {extension} extension—Have you forgotten to do an export?')
+    fileName = max()
     return path.join(directory, fileName)
 
 # Data
@@ -16,7 +19,7 @@ sourceFiles = [
     ### Not implemented!
     ## FR.MIDIFighterTwisterReader(latest_file_of_type_in_dir('/Users/jonnie/My Drive/Documents/Music Production/Peripherals/MIDI Fighter Twister','mfs')),
 ]
-outputFileName = 'Extracted MIDI.csv'
+outputFileName = '/Users/jonnie/My Drive/Documents/Music Production/Peripherals/Extracted MIDI.csv'
     
 # Get messages from source files
 for file in sourceFiles:
