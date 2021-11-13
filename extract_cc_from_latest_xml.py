@@ -12,14 +12,14 @@ def latest_file_of_type_in_dir(directory, extension):
 
 # Data
 sourceFiles = [
-    FR.TouchOSCReader(latest_file_of_type_in_dir('/Users/jonnie/My Drive/Documents/Music Production/Peripherals/TouchOSC','xml')),
-    FR.AbletonReader(latest_file_of_type_in_dir('/Users/jonnie/My Drive/Documents/Music Production/Ableton user library/Templates','als')),
+    FR.TouchOSCReader(latest_file_of_type_in_dir('/Volumes/GoogleDrive/My Drive/Documents/Music Production/Peripherals/TouchOSC','xml')),
+    FR.AbletonReader(latest_file_of_type_in_dir('/Volumes/GoogleDrive/My Drive/Documents/Music Production/Ableton user library/Templates','als')),
     FR.S49Reader('/Users/jonnie/Library/Application Support/Native Instruments/Komplete Kontrol/Komplete Kontrol MK2 Settings.dat'),
-    FR.UAMIDIControlReader(latest_file_of_type_in_dir('/Users/jonnie/My Drive/Documents/Music Production/Peripherals/UAD MIDI Control','ua')),
+    FR.UAMIDIControlReader(latest_file_of_type_in_dir('/Volumes/GoogleDrive/My Drive/Documents/Music Production/Peripherals/UAD MIDI Control','ua')),
     ### Not implemented!
-    ## FR.MIDIFighterTwisterReader(latest_file_of_type_in_dir('/Users/jonnie/My Drive/Documents/Music Production/Peripherals/MIDI Fighter Twister','mfs')),
+    ## FR.MIDIFighterTwisterReader(latest_file_of_type_in_dir('/Volumes/GoogleDrive/My Drive/Documents/Music Production/Peripherals/MIDI Fighter Twister','mfs')),
 ]
-outputFileName = '/Users/jonnie/My Drive/Documents/Music Production/Peripherals/Extracted MIDI.csv'
+outputFileName = '/Volumes/GoogleDrive/My Drive/Documents/Music Production/Peripherals/Extracted MIDI.csv'
     
 # Get messages from source files
 for file in sourceFiles:
